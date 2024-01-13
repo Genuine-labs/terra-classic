@@ -37,33 +37,31 @@ func TestTerraGaiaOsmoPFM(t *testing.T) {
 
 	ctx := context.Background()
 
-	config, err := createConfig()
+	config1, err := createConfig()
 	require.NoError(t, err)
+	config2 := config1.Clone()
+	config2.ChainID = "core-2"
+	config3 := config1.Clone()
+	config3.ChainID = "core-3"
 
 	cf := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*interchaintest.ChainSpec{
 		{
 			Name:          "terra",
-			ChainConfig:   config,
+			ChainConfig:   config1,
 			NumValidators: &numVals,
 			NumFullNodes:  &numFullNodes,
 		},
 		{
-			Name:          "gaia",
-			Version:       "v12.0.0",
+			Name:          "terra",
+			ChainConfig:   config2,
 			NumValidators: &numVals,
 			NumFullNodes:  &numFullNodes,
-			ChainConfig: ibc.ChainConfig{
-				GasPrices: "0.0uatom",
-			},
 		},
 		{
-			Name:          "osmosis",
-			Version:       "v18.0.0",
+			Name:          "terra",
+			ChainConfig:   config3,
 			NumValidators: &numVals,
 			NumFullNodes:  &numFullNodes,
-			ChainConfig: ibc.ChainConfig{
-				GasPrices: "0.005uosmo",
-			},
 		},
 	})
 
