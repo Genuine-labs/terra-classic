@@ -228,6 +228,9 @@ clean:
 ###                           Tests & Simulation                            ###
 ###############################################################################
 
+PACKAGES_UNIT=$(shell go list ./... | grep -E -v 'simapp|e2e')
+PACKAGES_E2E=$(shell go list ./... | grep '/e2e')
+
 include sims.mk
 
 test: test-unit
@@ -235,16 +238,29 @@ test: test-unit
 test-all: test-unit test-race test-cover
 
 test-unit:
-	@VERSION=$(VERSION) go test -mod=readonly -tags='ledger test_ledger_mock' ./...
+	@VERSION=$(VERSION) go test -mod=readonly -tags='ledger test_ledger_mock' $(PACKAGES_UNIT)
 
 test-race:
-	@VERSION=$(VERSION) go test -mod=readonly -race -tags='ledger test_ledger_mock' ./...
+	@VERSION=$(VERSION) go test -mod=readonly -race -tags='ledger test_ledger_mock' $(PACKAGES_UNIT)
 
 test-cover:
-	@go test -mod=readonly -timeout 30m -race -coverprofile=coverage.txt -covermode=atomic -tags='ledger test_ledger_mock' ./...
+	@go test -mod=readonly -timeout 30m -race -coverprofile=coverage.txt -covermode=atomic -tags='ledger test_ledger_mock' $(PACKAGES_UNIT)
+
+test-e2e:
+	@VERSION=$(VERSION) go test -mod=readonly -timeout=25m -v $(PACKAGES_E2E)
 
 benchmark:
 	@go test -mod=readonly -bench=. ./...
+
+build-e2e-init:
+	mkdir -p $(BUILDDIR)
+	go build -mod=readonly $(BUILD_FLAGS) -o $(BUILDDIR)/ ./tests/e2e/initialization
+
+docker-build-debug:
+	@DOCKER_BUILDKIT=1 docker build -t core:debug -f debug.Dockerfile .
+
+docker-build-e2e-init:
+	@DOCKER_BUILDKIT=1 docker build -t core-e2e-init:debug -f tests/e2e/initialization/initialization.Dockerfile .
 
 .PHONY: test test-all test-cover test-unit test-race
 
