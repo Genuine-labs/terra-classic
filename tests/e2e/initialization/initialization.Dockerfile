@@ -35,7 +35,12 @@ FROM ubuntu:23.04
 COPY --from=go-builder /core/build/initialization /bin/initialization
 COPY --from=go-builder /lib/${WASMVM_URL} /lib/${WASMVM_URL}
 
+# Docker ARGs are not expanded in ENTRYPOINT in the exec mode. At the same time,
+# it is impossible to add CMD arguments when running a container in the shell mode.
+# As a workaround, we create the entrypoint.sh script to bypass these issues.
+RUN echo "#!/bin/bash\ninitialization \"\$@\"" >> entrypoint.sh && chmod +x entrypoint.sh
+
 ENV HOME /core
 WORKDIR $HOME
 
-ENTRYPOINT ["initialization"]
+ENTRYPOINT ["./entrypoint.sh"]

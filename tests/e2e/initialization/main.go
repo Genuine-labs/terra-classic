@@ -5,21 +5,18 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/classic-terra/core/v2/tests/e2e/chain"
 )
 
 func main() {
 	var (
-		dataDir               string
-		chainId               string
-		votingPeriod          time.Duration
+		dataDir string
+		chainId string
 	)
 
 	flag.StringVar(&dataDir, "data-dir", "", "chain data directory")
 	flag.StringVar(&chainId, "chain-id", "", "chain ID")
-	flag.DurationVar(&votingPeriod, "voting-period", 30000000000, "voting period")
 	flag.Parse()
 
 	if len(dataDir) == 0 {
@@ -30,7 +27,7 @@ func main() {
 		panic(err)
 	}
 
-	createdChain, err := chain.InitChain(chainId, dataDir, votingPeriod)
+	createdChain, err := chain.InitChain(chainId, dataDir)
 	if err != nil {
 		panic(err)
 	}

@@ -21,16 +21,21 @@ import (
 )
 
 const (
+	MinGasPrice       = "0.000"
 	TerraDenom        = "uluna"
 	StakeDenom        = "stake"
 	ChainAID          = "terra-test-a"
 	TerraBalanceA     = 100000000000
 	StakeBalanceA     = 110000000000
+	StakeAmountA      = 100000000000
 	ChainBID          = "terra-test-b"
 	TerraBalanceB     = 200000000000
 	StakeBalanceB     = 220000000000
+	StakeAmountB      = 200000000000
 	E2EFeeToken       = "e2e-default-feetoken"
 	GenesisFeeBalance = 100000000000
+	IbcDenom          = "ibc/"
+	IbcSendAmount     = 3300000000
 )
 
 var (
@@ -38,7 +43,7 @@ var (
 	InitBalanceStrB = fmt.Sprintf("%d%s,%d%s", TerraBalanceB, TerraDenom, StakeBalanceB, StakeDenom)
 )
 
-func initGenesis(chain *Chain, votingPeriod time.Duration) error {
+func initGenesis(chain *Chain) error {
 	// initialize a genesis file
 	configDir := chain.Nodes[0].ConfigDir()
 	for _, val := range chain.Nodes {
@@ -95,7 +100,7 @@ func initGenesis(chain *Chain, votingPeriod time.Duration) error {
 		return err
 	}
 
-	err = updateModuleGenesis(appGenState, govtypes.ModuleName, &govv1types.GenesisState{}, updateGovGenesis(votingPeriod))
+	err = updateModuleGenesis(appGenState, govtypes.ModuleName, &govv1types.GenesisState{}, updateGovGenesis)
 	if err != nil {
 		return err
 	}
@@ -145,21 +150,20 @@ func updateCrisisGenesis(crisisGenState *crisistypes.GenesisState) {
 	crisisGenState.ConstantFee.Denom = TerraDenom
 }
 
-func updateGovGenesis(votingPeriod time.Duration) func(*govv1types.GenesisState) {
-	return func(govGenState *govv1types.GenesisState) {
-		maxDepositPeriod := 10 * time.Minute
+func updateGovGenesis(govGenState *govv1types.GenesisState) {
+	maxDepositPeriod := 10 * time.Minute
+	votingPeriod := time.Duration(30000000000)
 
-		govGenState.VotingParams.VotingPeriod = &votingPeriod
-		govGenState.DepositParams.MinDeposit = sdk.Coins{sdk.NewInt64Coin(TerraDenom, 10_000_000)}
-		govGenState.DepositParams.MaxDepositPeriod = &maxDepositPeriod
-		govGenState.TallyParams.Quorum = "0.000000000000000001"
-		govGenState.TallyParams.Threshold = "0.000000000000000001"
-	}
+	govGenState.VotingParams.VotingPeriod = &votingPeriod
+	govGenState.DepositParams.MinDeposit = sdk.Coins{sdk.NewInt64Coin(TerraDenom, 10_000_000)}
+	govGenState.DepositParams.MaxDepositPeriod = &maxDepositPeriod
+	govGenState.TallyParams.Quorum = "0.000000000000000001"
+	govGenState.TallyParams.Threshold = "0.000000000000000001"
 }
 
 func updateGenUtilGenesis(c *Chain) func(*genutiltypes.GenesisState) {
-	StakeAmountCoinA := sdk.NewCoin(StakeDenom, sdk.NewInt(StakeBalanceA))
-	StakeAmountCoinB := sdk.NewCoin(StakeDenom, sdk.NewInt(StakeBalanceB))
+	StakeAmountCoinA := sdk.NewCoin(StakeDenom, sdk.NewInt(StakeAmountA))
+	StakeAmountCoinB := sdk.NewCoin(StakeDenom, sdk.NewInt(StakeAmountB))
 	return func(genUtilGenState *genutiltypes.GenesisState) {
 		// generate genesis txs
 		genTxs := make([]json.RawMessage, 0, len(c.Nodes))

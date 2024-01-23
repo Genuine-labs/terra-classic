@@ -65,8 +65,8 @@ trust_threshold = { numerator = '1', denominator = '3' }
 EOF
 
 # import keys
-hermes keys restore ${TERRA_B_E2E_CHAIN_ID} -n "val01-osmosis-b" -m "${TERRA_B_E2E_VAL_MNEMONIC}"
-hermes keys restore ${TERRA_A_E2E_CHAIN_ID} -n "val01-osmosis-a" -m "${TERRA_A_E2E_VAL_MNEMONIC}"
+hermes keys restore ${TERRA_B_E2E_CHAIN_ID} -n "val01-terra-b" -m "${TERRA_B_E2E_VAL_MNEMONIC}"
+hermes keys restore ${TERRA_A_E2E_CHAIN_ID} -n "val01-terra-a" -m "${TERRA_A_E2E_VAL_MNEMONIC}"
 
 # start Hermes relayer
 hermes start

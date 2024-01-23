@@ -2,10 +2,9 @@ package chain
 
 import (
 	"fmt"
-	"time"
 )
 
-func InitChain(id, dataDir string, votingPeriod time.Duration) (*Chain, error) {
+func InitChain(id, dataDir string) (*Chain, error) {
 	chain, err := new(id, dataDir)
 	if err != nil {
 		return nil, err
@@ -14,7 +13,7 @@ func InitChain(id, dataDir string, votingPeriod time.Duration) (*Chain, error) {
 		return nil, err
 	}
 
-	if err := initGenesis(chain, votingPeriod); err != nil {
+	if err := initGenesis(chain); err != nil {
 		return nil, err
 	}
 	var peers []string
