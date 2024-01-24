@@ -89,13 +89,13 @@ func (bc *baseConfigurer) runIBCRelayer(chainConfigA *chain.Config, chainConfigB
 	if err != nil {
 		return err
 	}
-
+	bc.t.Log("starting2 Hermes relayer container...")
 	hermesCfgPath := path.Join(tmpDir, "hermes")
 
 	if err := os.MkdirAll(hermesCfgPath, 0o755); err != nil {
 		return err
 	}
-
+	bc.t.Log("starting3 Hermes relayer container...")
 	_, err = util.CopyFile(
 		filepath.Join("./scripts/", "hermes_bootstrap.sh"),
 		filepath.Join(hermesCfgPath, "hermes_bootstrap.sh"),
@@ -103,7 +103,7 @@ func (bc *baseConfigurer) runIBCRelayer(chainConfigA *chain.Config, chainConfigB
 	if err != nil {
 		return err
 	}
-
+	bc.t.Log("starting4 Hermes relayer container...")
 	relayerNodeA := chainConfigA.NodeConfigs[0]
 	relayerNodeB := chainConfigB.NodeConfigs[0]
 
@@ -111,9 +111,7 @@ func (bc *baseConfigurer) runIBCRelayer(chainConfigA *chain.Config, chainConfigB
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("relayerNodeA.Mnemonic:", relayerNodeA.Mnemonic)
-
+	bc.t.Log("starting5 Hermes relayer container...")
 	err = util.WritePublicFile(filepath.Join(hermesCfgPath, "mnemonicB.json"), []byte(relayerNodeB.Mnemonic))
 	if err != nil {
 		return err
@@ -126,11 +124,13 @@ func (bc *baseConfigurer) runIBCRelayer(chainConfigA *chain.Config, chainConfigB
 		chainConfigB.Id,
 		relayerNodeB.Name,
 		filepath.Join("/root/hermes", "mnemonicB.json"),
-		hermesCfgPath)
+		hermesCfgPath,
+	)
+	bc.t.Log("starting6 Hermes relayer container...")
 	if err != nil {
 		return err
 	}
-
+	bc.t.Log("starting7 Hermes relayer container...")
 	endpoint := fmt.Sprintf("http://%s/state", hermesResource.GetHostPort("3031/tcp"))
 
 	require.Eventually(bc.t, func() bool {
