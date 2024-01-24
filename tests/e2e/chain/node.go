@@ -17,7 +17,6 @@ import (
 	"github.com/tendermint/tendermint/privval"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/cosmos/cosmos-sdk/codec/unknownproto"
 	"github.com/cosmos/cosmos-sdk/crypto"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -80,30 +79,6 @@ func (n *Node) init() error {
 
 	tmconfig.WriteConfigFile(filepath.Join(config.RootDir, "config", "config.toml"), config)
 	return nil
-}
-
-func (n *Node) getGenesisDoc() (*tmtypes.GenesisDoc, error) {
-	serverCtx := server.NewDefaultContext()
-	config := serverCtx.Config
-	config.SetRoot(n.ConfigDir())
-
-	genFile := config.GenesisFile()
-	doc := &tmtypes.GenesisDoc{}
-
-	if _, err := os.Stat(genFile); err != nil {
-		if !os.IsNotExist(err) {
-			return nil, err
-		}
-	} else {
-		var err error
-
-		doc, err = tmtypes.GenesisDocFromFile(genFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read genesis doc from file: %w", err)
-		}
-	}
-
-	return doc, nil
 }
 
 func (n *Node) createKey(name string) error {
@@ -199,6 +174,30 @@ func (n *Node) ConfigDir() string {
 
 func (n *Node) getNodeKey() *p2p.NodeKey {
 	return &n.NodeKey
+}
+
+func (n *Node) getGenesisDoc() (*tmtypes.GenesisDoc, error) {
+	serverCtx := server.NewDefaultContext()
+	config := serverCtx.Config
+	config.SetRoot(n.ConfigDir())
+
+	genFile := config.GenesisFile()
+	doc := &tmtypes.GenesisDoc{}
+
+	if _, err := os.Stat(genFile); err != nil {
+		if !os.IsNotExist(err) {
+			return nil, err
+		}
+	} else {
+		var err error
+
+		doc, err = tmtypes.GenesisDocFromFile(genFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read genesis doc from file: %w", err)
+		}
+	}
+
+	return doc, nil
 }
 
 func (n *Node) initNodeConfigs(persistentPeers []string) error {
@@ -345,42 +344,5 @@ func (n *Node) signMsg(msgs ...sdk.Msg) (*sdktx.Tx, error) {
 		return nil, err
 	}
 
-	return decodeTx(bz)
-}
-
-func decodeTx(txBytes []byte) (*sdktx.Tx, error) {
-	var raw sdktx.TxRaw
-
-	// reject all unknown proto fields in the root TxRaw
-	err := unknownproto.RejectUnknownFieldsStrict(txBytes, &raw, util.EncodingConfig.InterfaceRegistry)
-	if err != nil {
-		return nil, fmt.Errorf("failed to reject unknown fields: %w", err)
-	}
-
-	if err := util.EncodingConfig.Marshaler.Unmarshal(txBytes, &raw); err != nil {
-		return nil, err
-	}
-
-	var body sdktx.TxBody
-	if err := util.EncodingConfig.Marshaler.Unmarshal(raw.BodyBytes, &body); err != nil {
-		return nil, fmt.Errorf("failed to decode tx: %w", err)
-	}
-
-	var authInfo sdktx.AuthInfo
-
-	// reject all unknown proto fields in AuthInfo
-	err = unknownproto.RejectUnknownFieldsStrict(raw.AuthInfoBytes, &authInfo, util.EncodingConfig.InterfaceRegistry)
-	if err != nil {
-		return nil, fmt.Errorf("failed to reject unknown fields: %w", err)
-	}
-
-	if err := util.EncodingConfig.Marshaler.Unmarshal(raw.AuthInfoBytes, &authInfo); err != nil {
-		return nil, fmt.Errorf("failed to decode auth info: %w", err)
-	}
-
-	return &sdktx.Tx{
-		Body:       &body,
-		AuthInfo:   &authInfo,
-		Signatures: raw.Signatures,
-	}, nil
+	return util.DecodeTx(bz)
 }
