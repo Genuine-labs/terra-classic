@@ -4,7 +4,47 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/cosmos/cosmos-sdk/codec/unknownproto"
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 )
+
+func DecodeTx(txBytes []byte) (*sdktx.Tx, error) {
+	var raw sdktx.TxRaw
+
+	// reject all unknown proto fields in the root TxRaw
+	err := unknownproto.RejectUnknownFieldsStrict(txBytes, &raw, EncodingConfig.InterfaceRegistry)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reject unknown fields: %w", err)
+	}
+
+	if err := EncodingConfig.Marshaler.Unmarshal(txBytes, &raw); err != nil {
+		return nil, err
+	}
+
+	var body sdktx.TxBody
+	if err := EncodingConfig.Marshaler.Unmarshal(raw.BodyBytes, &body); err != nil {
+		return nil, fmt.Errorf("failed to decode tx: %w", err)
+	}
+
+	var authInfo sdktx.AuthInfo
+
+	// reject all unknown proto fields in AuthInfo
+	err = unknownproto.RejectUnknownFieldsStrict(raw.AuthInfoBytes, &authInfo, EncodingConfig.InterfaceRegistry)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reject unknown fields: %w", err)
+	}
+
+	if err := EncodingConfig.Marshaler.Unmarshal(raw.AuthInfoBytes, &authInfo); err != nil {
+		return nil, fmt.Errorf("failed to decode auth info: %w", err)
+	}
+
+	return &sdktx.Tx{
+		Body:       &body,
+		AuthInfo:   &authInfo,
+		Signatures: raw.Signatures,
+	}, nil
+}
 
 func CopyFile(src, dst string) (int64, error) {
 	sourceFileStat, err := os.Stat(src)
@@ -39,4 +79,13 @@ func WriteFile(path string, body []byte) error {
 	}
 
 	return os.WriteFile(path, body, 0o600)
+}
+
+func WritePublicFile(path string, body []byte) error {
+	_, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(path, body, 0o666)
 }
