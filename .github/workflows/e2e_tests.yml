@@ -5,7 +5,7 @@ on:
   pull_request:
   push:
     branches:
-      - frag/foundation
+      - nguyen/test-ci
 permissions:
   contents: read
   packages: write
