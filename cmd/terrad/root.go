@@ -40,6 +40,10 @@ import (
 	authcustomcli "github.com/classic-terra/core/v2/custom/auth/client/cli"
 	core "github.com/classic-terra/core/v2/types"
 
+	"github.com/tendermint/tendermint/crypto"
+	"github.com/tendermint/tendermint/libs/bytes"
+	tmdb "github.com/tendermint/tm-db"
+
 	"github.com/CosmWasm/wasmd/x/wasm"
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 )
@@ -127,11 +131,12 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 		tmcli.NewCompletionCmd(rootCmd, true),
 		testnetCmd(terraapp.ModuleBasics, banktypes.GenesisBalancesIterator{}),
 		debug.Cmd(),
-		pruning.Cmd(a.newApp, terraapp.DefaultNodeHome),
-		snapshot.Cmd(a.newApp),
+		pruning.Cmd(newApp, terraapp.DefaultNodeHome),
+		snapshot.Cmd(newApp),
 	)
 
-	server.AddCommands(rootCmd, terraapp.DefaultNodeHome, a.newApp, a.appExport, addModuleInitFlags)
+	server.AddCommands(rootCmd, terraapp.DefaultNodeHome, newApp, a.appExport, addModuleInitFlags)
+	server.AddTestnetCreatorCommand(rootCmd, terraapp.DefaultNodeHome, newTestnetApp, addModuleInitFlags)
 
 	// add keybase, auxiliary RPC, query, and tx child commands
 	rootCmd.AddCommand(
@@ -208,7 +213,8 @@ type appCreator struct {
 }
 
 // newApp is an AppCreator
-func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts servertypes.AppOptions) servertypes.Application {
+func newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts servertypes.AppOptions) servertypes.Application {
+	encodingConfig := terraapp.MakeEncodingConfig()
 	var cache sdk.MultiStorePersistentCache
 
 	if cast.ToBool(appOpts.Get(server.FlagInterBlockCache)) {
@@ -252,7 +258,7 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 		logger, db, traceStore, true, skipUpgradeHeights,
 		cast.ToString(appOpts.Get(flags.FlagHome)),
 		cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod)),
-		a.encodingConfig,
+		encodingConfig,
 		appOpts,
 		wasmOpts,
 		baseapp.SetPruning(pruningOpts),
@@ -293,4 +299,35 @@ func (a appCreator) appExport(
 	}
 
 	return terraApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs)
+}
+
+// newTestnetApp starts by running the normal newApp method. From there, the app interface returned is modified in order
+// for a testnet to be created from the provided app.
+func newTestnetApp(logger log.Logger, db tmdb.DB, traceStore io.Writer, appOpts servertypes.AppOptions) servertypes.Application {
+	// Create an app and type cast to an OsmosisApp
+	app := newApp(logger, db, traceStore, appOpts)
+	osmosisApp, ok := app.(*terraapp.TerraApp)
+	if !ok {
+		panic("app created from newApp is not of type osmosisApp")
+	}
+
+	newValAddr, ok := appOpts.Get(server.KeyNewValAddr).(bytes.HexBytes)
+	if !ok {
+		panic("newValAddr is not of type bytes.HexBytes")
+	}
+	newValPubKey, ok := appOpts.Get(server.KeyUserPubKey).(crypto.PubKey)
+	if !ok {
+		panic("newValPubKey is not of type crypto.PubKey")
+	}
+	newOperatorAddress, ok := appOpts.Get(server.KeyNewOpAddr).(string)
+	if !ok {
+		panic("newOperatorAddress is not of type string")
+	}
+	upgradeToTrigger, ok := appOpts.Get(server.KeyTriggerTestnetUpgrade).(string)
+	if !ok {
+		panic("upgradeToTrigger is not of type string")
+	}
+
+	// Make modifications to the normal OsmosisApp required to run the network locally
+	return terraapp.InitTerraAppForTestnet(osmosisApp, newValAddr, newValPubKey, newOperatorAddress, upgradeToTrigger)
 }
