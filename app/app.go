@@ -19,12 +19,19 @@ import (
 	tmos "github.com/cometbft/cometbft/libs/os"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 
-	"cosmossdk.io/simapp"
+	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
+	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
+	"github.com/cosmos/cosmos-sdk/testutil/testdata"
+
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
+	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	"github.com/cosmos/cosmos-sdk/runtime"
+	runtimeservices "github.com/cosmos/cosmos-sdk/runtime/services"
+	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/server/api"
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -52,7 +59,6 @@ import (
 	v7 "github.com/classic-terra/core/v2/app/upgrades/v7"
 
 	customante "github.com/classic-terra/core/v2/custom/auth/ante"
-	custompost "github.com/classic-terra/core/v2/custom/auth/post"
 	customauthtx "github.com/classic-terra/core/v2/custom/auth/tx"
 
 	"github.com/CosmWasm/wasmd/x/wasm"
@@ -76,7 +82,7 @@ var (
 
 // Verify app interface at compile time
 var (
-	_ simapp.SimApp           = (*TerraApp)(nil)
+	_ runtime.AppI            = (*TerraApp)(nil)
 	_ servertypes.Application = (*TerraApp)(nil)
 )
 
@@ -90,6 +96,8 @@ type TerraApp struct {
 	legacyAmino       *codec.LegacyAmino
 	appCodec          codec.Codec
 	interfaceRegistry codectypes.InterfaceRegistry
+
+	txConfig client.TxConfig
 
 	invCheckPeriod uint
 
@@ -115,14 +123,17 @@ func init() {
 // NewTerraApp returns a reference to an initialized TerraApp.
 func NewTerraApp(
 	logger log.Logger, db dbm.DB, traceStore io.Writer, loadLatest bool, skipUpgradeHeights map[int64]bool,
-	homePath string, invCheckPeriod uint, encodingConfig terraappparams.EncodingConfig, appOpts servertypes.AppOptions,
+	homePath string, encodingConfig terraappparams.EncodingConfig, appOpts servertypes.AppOptions,
 	wasmOpts []wasm.Option, baseAppOptions ...func(*baseapp.BaseApp),
 ) *TerraApp {
 	appCodec := encodingConfig.Marshaler
 	legacyAmino := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
+	txConfig := encodingConfig.TxConfig
+	invCheckPeriod := cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod))
 
-	bApp := baseapp.NewBaseApp(appName, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
+	bApp := baseapp.NewBaseApp(appName, logger, db, txConfig.TxDecoder(), baseAppOptions...)
+
 	bApp.SetCommitMultiStoreTracer(traceStore)
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)
@@ -130,10 +141,13 @@ func NewTerraApp(
 	app := &TerraApp{
 		BaseApp:           bApp,
 		legacyAmino:       legacyAmino,
+		txConfig:          txConfig,
 		appCodec:          appCodec,
 		interfaceRegistry: interfaceRegistry,
 		invCheckPeriod:    invCheckPeriod,
 	}
+
+	moduleAccountAddresses := app.ModuleAccountAddrs()
 
 	// Setup keepers
 	app.AppKeepers = keepers.NewAppKeepers(
@@ -141,10 +155,12 @@ func NewTerraApp(
 		bApp,
 		legacyAmino,
 		maccPerms,
+		moduleAccountAddresses,
 		allowedReceivingModAcc,
 		skipUpgradeHeights,
 		homePath,
 		invCheckPeriod,
+		logger,
 		wasmOpts,
 		appOpts,
 	)
@@ -171,10 +187,21 @@ func NewTerraApp(
 	// NOTE: Treasury must occur after bank module so that initial supply is properly set
 	app.mm.SetOrderInitGenesis(orderInitGenesis()...)
 
-	app.mm.RegisterInvariants(&app.CrisisKeeper)
-	app.mm.RegisterRoutes(app.Router(), app.QueryRouter(), encodingConfig.Amino)
+	app.mm.RegisterInvariants(app.CrisisKeeper)
 	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
 	app.mm.RegisterServices(app.configurator)
+
+	autocliv1.RegisterQueryServer(app.GRPCQueryRouter(), runtimeservices.NewAutoCLIQueryService(app.mm.Modules))
+
+	reflectionSvc, err := runtimeservices.NewReflectionService()
+	if err != nil {
+		panic(err)
+	}
+	reflectionv1.RegisterReflectionServiceServer(app.GRPCQueryRouter(), reflectionSvc)
+
+	// add test gRPC service for testing gRPC queries in isolation
+	testdata.RegisterQueryServer(app.GRPCQueryRouter(), testdata.QueryImpl{})
+
 	app.setupUpgradeHandlers()
 	app.setupUpgradeStoreLoaders()
 
@@ -190,10 +217,6 @@ func NewTerraApp(
 	app.MountKVStores(app.GetKVStoreKey())
 	app.MountTransientStores(app.GetTransientStoreKey())
 	app.MountMemoryStores(app.GetMemoryStoreKey())
-
-	// initialize BaseApp
-	app.SetInitChainer(app.InitChainer)
-	app.SetBeginBlocker(app.BeginBlocker)
 
 	wasmConfig, err := wasm.ReadWasmConfig(appOpts)
 	if err != nil {
@@ -211,28 +234,20 @@ func NewTerraApp(
 			SignModeHandler:    encodingConfig.TxConfig.SignModeHandler(),
 			IBCKeeper:          *app.IBCKeeper,
 			DistributionKeeper: app.DistrKeeper,
-			GovKeeper:          app.GovKeeper,
+			GovKeeper:          *app.GovKeeper,
 			WasmConfig:         &wasmConfig,
 			TXCounterStoreKey:  app.GetKey(wasm.StoreKey),
 			DyncommKeeper:      app.DyncommKeeper,
-			StakingKeeper:      app.StakingKeeper,
+			StakingKeeper:      *app.StakingKeeper,
 		},
 	)
 	if err != nil {
 		panic(err)
 	}
 
-	postHandler, err := custompost.NewPostHandler(
-		custompost.HandlerOptions{
-			DyncommKeeper: app.DyncommKeeper,
-		},
-	)
-	if err != nil {
-		panic(err)
-	}
-
+	app.SetInitChainer(app.InitChainer)
+	app.SetBeginBlocker(app.BeginBlocker)
 	app.SetAnteHandler(anteHandler)
-	app.SetPostHandler(postHandler)
 	app.SetEndBlocker(app.EndBlocker)
 
 	if loadLatest {
@@ -413,9 +428,18 @@ func (app *TerraApp) setupUpgradeHandlers() {
 			upgrade.CreateUpgradeHandler(
 				app.mm,
 				app.configurator,
-				app.BaseApp,
 				app.AppKeepers,
 			),
 		)
 	}
+}
+
+// RegisterTxService allows query minimum-gas-prices in app.toml
+func (app *TerraApp) RegisterNodeService(clientCtx client.Context) {
+	nodeservice.RegisterNodeService(clientCtx, app.GRPCQueryRouter())
+}
+
+// GetTxConfig implements the TestingApp interface.
+func (app *TerraApp) GetTxConfig() client.TxConfig {
+	return app.txConfig
 }
