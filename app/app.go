@@ -428,6 +428,7 @@ func (app *TerraApp) setupUpgradeHandlers() {
 			upgrade.CreateUpgradeHandler(
 				app.mm,
 				app.configurator,
+				app.BaseApp,
 				app.AppKeepers,
 			),
 		)

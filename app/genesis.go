@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"github.com/classic-terra/core/v2/app/params"
 )
 
 // GenesisState The genesis state of the blockchain is represented here as a map of raw json
@@ -14,7 +15,6 @@ import (
 type GenesisState map[string]json.RawMessage
 
 // NewDefaultGenesisState generates the default state for the application.
-func NewDefaultGenesisState() GenesisState {
-	encCfg := MakeEncodingConfig()
+func NewDefaultGenesisState(encCfg params.EncodingConfig) GenesisState {
 	return ModuleBasics.DefaultGenesis(encCfg.Marshaler)
 }

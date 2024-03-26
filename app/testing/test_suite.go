@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/simapp"
 	"github.com/CosmWasm/wasmd/x/wasm"
 	"github.com/classic-terra/core/v2/app"
 	appparams "github.com/classic-terra/core/v2/app/params"
@@ -20,6 +19,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	"github.com/cosmos/cosmos-sdk/server"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -69,8 +70,8 @@ func (ao EmptyBaseAppOptions) Get(_ string) interface{} {
 
 // DefaultConsensusParams defines the default Tendermint consensus params used
 // in app testing.
-var DefaultConsensusParams = &abci.ConsensusParams{
-	Block: &abci.BlockParams{
+var DefaultConsensusParams = &tmproto.ConsensusParams{
+	Block: &tmproto.BlockParams{
 		MaxBytes: 200000,
 		MaxGas:   2000000,
 	},
@@ -120,7 +121,7 @@ func SetupApp(t *testing.T) *app.TerraApp {
 func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount, balances ...banktypes.Balance) *app.TerraApp {
 	t.Helper()
 
-	terraApp, genesisState := setup(true, 5)
+	terraApp, genesisState := setup()
 	genesisState = genesisStateWithValSet(t, terraApp, genesisState, valSet, genAccs, balances...)
 
 	stateBytes, err := json.MarshalIndent(genesisState, "", " ")
@@ -149,9 +150,13 @@ func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs 
 	return terraApp
 }
 
-func setup(withGenesis bool, invCheckPeriod uint) (*app.TerraApp, app.GenesisState) {
+func setup() (*app.TerraApp, app.GenesisState) {
 	db := dbm.NewMemDB()
 	encCdc := app.MakeEncodingConfig()
+
+	appOptions := make(simtestutil.AppOptionsMap, 0)
+	appOptions[server.FlagInvCheckPeriod] = 5
+	appOptions[server.FlagMinGasPrices] = "0uatom"
 
 	terraapp := app.NewTerraApp(
 		log.NewNopLogger(),
@@ -160,16 +165,13 @@ func setup(withGenesis bool, invCheckPeriod uint) (*app.TerraApp, app.GenesisSta
 		true,
 		map[int64]bool{},
 		app.DefaultNodeHome,
-		invCheckPeriod,
 		encCdc,
-		simapp.EmptyAppOptions{},
+		appOptions,
 		emptyWasmOpts,
 	)
-	if withGenesis {
-		return terraapp, app.NewDefaultGenesisState()
-	}
 
-	return terraapp, app.GenesisState{}
+	return terraapp, app.NewDefaultGenesisState(encCdc)
+
 }
 
 func genesisStateWithValSet(t *testing.T,
@@ -246,6 +248,7 @@ func genesisStateWithValSet(t *testing.T,
 		balances,
 		totalSupply,
 		[]banktypes.Metadata{},
+		[]banktypes.SendEnabled{},
 	)
 
 	genesisState[banktypes.ModuleName] = app.AppCodec().MustMarshalJSON(bankGenesis)
