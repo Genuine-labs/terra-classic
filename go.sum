@@ -214,6 +214,8 @@ github.com/ChainSafe/go-schnorrkel v1.0.0/go.mod h1:dpzHYVxLZcp8pjlV+O+UR8K0Hp/z
 github.com/DATA-DOG/go-sqlmock v1.3.3/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
 github.com/DataDog/zstd v1.5.0/go.mod h1:g4AWEaM3yOg3HYfnJ3YIawPnVdXJh9QME85blwSAmyw=
+github.com/Genuine-labs/terra-classic-wasmd v0.30.1-0.20240408165747-41a56f89d87b h1:xBAMl+Uuv2c7Acu6frfHrnM9L7Zqv24lZsmIoH6XWpM=
+github.com/Genuine-labs/terra-classic-wasmd v0.30.1-0.20240408165747-41a56f89d87b/go.mod h1:Ug607EsX+EkW3/xOFaP56kZA7WklN+ZrwUEsaJ22xH0=
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/Microsoft/go-winio v0.6.0 h1:slsWYD/zyx7lCXoZVlvQrj0hPTM1HI4+v1sIda2yDvg=
 github.com/Microsoft/go-winio v0.6.0/go.mod h1:cTAf44im0RAYeL23bpB+fzCyDH2MJiz2BO69KH/soAE=
@@ -340,8 +342,6 @@ github.com/classic-terra/cosmos-sdk v0.46.14-terra.4 h1:GRgKTxC5n+5CqxtqkoJ+fNwG
 github.com/classic-terra/cosmos-sdk v0.46.14-terra.4/go.mod h1:3VKRzlOtvuqZA29wRqdx6rPsJmYhvxjJyc3tvQWpjf4=
 github.com/classic-terra/goleveldb v0.0.0-20230914223247-2b28f6655121 h1:fjpWDB0hm225wYg9vunyDyTH8ftd5xEUgINJKidj+Tw=
 github.com/classic-terra/goleveldb v0.0.0-20230914223247-2b28f6655121/go.mod h1:q4W45IWZaF22tdD+VEXcAWRA037jwmWEB5VWYORlTpc=
-github.com/classic-terra/wasmd v0.30.0-terra.3 h1:qruhiaAIRl14UVtHzfh81pr0YmW94QE4+hqivIi9AYg=
-github.com/classic-terra/wasmd v0.30.0-terra.3/go.mod h1:Ug607EsX+EkW3/xOFaP56kZA7WklN+ZrwUEsaJ22xH0=
 github.com/classic-terra/wasmvm v1.1.1-terra.2-rc.0 h1:nx6mpQuwGkY6aata/4QTVGe19ziHPSMkXC9k3pGh8wQ=
 github.com/classic-terra/wasmvm v1.1.1-terra.2-rc.0/go.mod h1:ei0xpvomwSdONsxDuONzV7bL1jSET1M8brEx0FCXc+A=
 github.com/clbanning/x2j v0.0.0-20191024224557-825249438eec/go.mod h1:jMjuTZXRI4dUb/I5gc9Hdhagfvm9+RyrPryS/auMzxE=

@@ -211,7 +211,7 @@ replace (
 )
 
 replace (
-	github.com/CosmWasm/wasmd => github.com/classic-terra/wasmd v0.30.0-terra.3
+	github.com/CosmWasm/wasmd => github.com/Genuine-labs/terra-classic-wasmd v0.30.1-0.20240408165747-41a56f89d87b
 	github.com/CosmWasm/wasmvm => github.com/classic-terra/wasmvm v1.1.1-terra.2-rc.0
 	github.com/cosmos/cosmos-sdk => github.com/classic-terra/cosmos-sdk v0.46.14-terra.4
 	github.com/cosmos/ledger-cosmos-go => github.com/terra-money/ledger-terra-go v0.11.2
